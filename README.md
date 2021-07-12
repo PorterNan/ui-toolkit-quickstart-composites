@@ -9,4 +9,4 @@
 7. Go back to this repo
 8. `rush install`
 9. `rush build`
-10. `rushx build`
+10. `rushx start`
