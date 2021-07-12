@@ -22,7 +22,7 @@ import {
   incomingCallModalContainerStyle
 } from './styles/IncomingCallAlerts.styles';
 import { useBoolean } from '@uifabric/react-hooks';
-import { StreamMedia, VideoTile } from '@internal/react-components';
+import { StreamMedia, VideoTile } from '@azure/communication-react';
 
 export type IncomingCallToastProps = {
   /** Caller's Name */

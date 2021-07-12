@@ -1,20 +1,18 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import React, { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CallScreen } from './CallScreen';
 import { ConfigurationScreen } from './ConfigurationScreen';
 import { Error } from './Error';
 import { Theme, PartialTheme } from '@fluentui/react';
-import { CallAdapterProvider, useAdapter } from './adapter/CallAdapterProvider';
-import { CallAdapter, CallCompositePage } from './adapter/CallAdapter';
-import { PlaceholderProps } from '@internal/react-components';
-import { useSelector } from './hooks/useSelector';
-import { getPage } from './selectors/baseSelectors';
-import { FluentThemeProvider } from '@internal/react-components';
+import { CallAgent, TeamsMeetingLinkLocator, GroupCallLocator, Call, AudioOptions } from '@azure/communication-calling';
+import { StatefulCallClient, PlaceholderProps, FluentThemeProvider, CallAgentProvider, CallClientProvider, CallCompositePage, useCallAgent, CallProvider } from '@azure/communication-react';
 
 export type CallCompositeProps = {
-  adapter: CallAdapter;
+  callClient: StatefulCallClient;
+  callAgent: CallAgent;
+  callLocator: GroupCallLocator | TeamsMeetingLinkLocator;
   /**
    * Fluent theme for the composite.
    *
@@ -28,20 +26,42 @@ export type CallCompositeProps = {
 type MainScreenProps = {
   onRenderAvatar?: (props: PlaceholderProps, defaultOnRender: (props: PlaceholderProps) => JSX.Element) => JSX.Element;
   callInvitationURL?: string;
+  callLocator: GroupCallLocator | TeamsMeetingLinkLocator;
 };
 
-const MainScreen = ({ callInvitationURL, onRenderAvatar }: MainScreenProps): JSX.Element => {
-  const page = useSelector(getPage);
-  const adapter = useAdapter();
+const MainScreen = ({ callInvitationURL, onRenderAvatar, callLocator }: MainScreenProps): JSX.Element => {
+  const [page, setPage] = useState<CallCompositePage>('configuration');
+  const [isMicInitialOn, setIsMicInitialOn] = useState(false);
+
+
+  const callAgent = useCallAgent();
+  const [joinedCall, setJoinedCall] = useState<boolean>(false);
+  const [call, setCall] = useState<Call | undefined>();
+
+  useEffect(() => {
+    if (!joinedCall && page === 'call') {
+      const audioOptions: AudioOptions = { muted: !isMicInitialOn };
+      const isTeamsMeeting = 'groupId' in callLocator;
+      if (isTeamsMeeting) {
+        setCall(callAgent?.join(callLocator as TeamsMeetingLinkLocator, { audioOptions }));
+      } else {
+        setCall(callAgent?.join(callLocator as GroupCallLocator, {
+          audioOptions
+        }));
+      }
+      setJoinedCall(true);
+    }
+  }, [callAgent, callLocator, isMicInitialOn, joinedCall, page]);
+
   switch (page) {
     case 'configuration':
-      return <ConfigurationScreen startCallHandler={(): void => adapter.setPage('call')} />;
+      return <ConfigurationScreen startCallHandler={(isMicOn): void => { setPage('call'); setIsMicInitialOn(isMicOn) }} />;
     case 'error':
-      return <Error rejoinHandler={() => adapter.setPage('configuration')} />;
+      return <Error rejoinHandler={() => setPage('configuration')} />;
     case 'errorJoiningTeamsMeeting':
       return (
         <Error
-          rejoinHandler={() => adapter.setPage('configuration')}
+          rejoinHandler={() => setPage('configuration')}
           title="Error joining Teams Meeting"
           reason="Access to the Teams meeting was denied."
         />
@@ -49,45 +69,53 @@ const MainScreen = ({ callInvitationURL, onRenderAvatar }: MainScreenProps): JSX
     case 'removed':
       return (
         <Error
-          rejoinHandler={() => adapter.setPage('configuration')}
+          rejoinHandler={() => setPage('configuration')}
           title="Oops! You are no longer a participant of the call."
           reason="Access to the meeting has been stopped"
         />
       );
     default:
       return (
-        <CallScreen
-          endCallHandler={async (): Promise<void> => {
-            adapter.setPage('configuration');
-          }}
-          callErrorHandler={(customPage?: CallCompositePage) => {
-            customPage ? adapter.setPage(customPage) : adapter.setPage('error');
-          }}
-          onRenderAvatar={onRenderAvatar}
-          showParticipants={true}
-          callInvitationURL={callInvitationURL}
-        />
+        <CallProvider call={call}>
+          <CallScreen
+            endCallHandler={async (): Promise<void> => {
+              setPage('configuration');
+              setJoinedCall(false);
+            }}
+            callErrorHandler={(customPage?: CallCompositePage) => {
+              customPage ? setPage(customPage) : setPage('error');
+            }}
+            callLocator={callLocator}
+            onRenderAvatar={onRenderAvatar}
+            showParticipants={true}
+            isMicOn={isMicInitialOn}
+            callInvitationURL={callInvitationURL}
+          />
+        </CallProvider>
       );
   }
 };
 
-export const Call = (props: CallCompositeProps): JSX.Element => {
-  const { adapter, callInvitationURL, fluentTheme } = props;
+export const CallApp = (props: CallCompositeProps): JSX.Element => {
+  const { callInvitationURL, fluentTheme, callClient, callAgent, onRenderAvatar, callLocator } = props;
 
   useEffect(() => {
     (async () => {
-      await adapter.askDevicePermission({ video: true, audio: true });
-      adapter.queryCameras();
-      adapter.queryMicrophones();
-      adapter.querySpeakers();
+      const devices = await props.callClient.getDeviceManager();
+      await devices.askDevicePermission({ video: true, audio: true });
+      devices.getCameras();
+      devices.getMicrophones();
+      devices.getSpeakers();
     })();
-  }, [adapter]);
+  }, [props.callClient]);
 
   return (
     <FluentThemeProvider fluentTheme={fluentTheme}>
-      <CallAdapterProvider adapter={adapter}>
-        <MainScreen onRenderAvatar={props.onRenderAvatar} callInvitationURL={callInvitationURL} />
-      </CallAdapterProvider>
+      <CallClientProvider callClient={callClient}>
+        <CallAgentProvider callAgent={callAgent}>
+          <MainScreen onRenderAvatar={onRenderAvatar} callInvitationURL={callInvitationURL} callLocator={callLocator} />
+        </CallAgentProvider>
+      </CallClientProvider>
     </FluentThemeProvider>
   );
 };

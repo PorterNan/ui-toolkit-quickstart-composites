@@ -2,19 +2,15 @@
 // Licensed under the MIT license.
 
 import { CallState as SDKCallStatus } from '@azure/communication-calling';
-import { toFlatCommunicationIdentifier } from '@internal/acs-ui-common';
-import { CallState, DeviceManagerState } from '@internal/calling-stateful-client';
-import { CallAdapterState, CallCompositePage } from '../adapter/CallAdapter';
+import { CallClientState, CallingBaseSelectorProps, CallState, DeviceManagerState, toFlatCommunicationIdentifier } from '@azure/communication-react';
 
-export const getCall = (state: CallAdapterState): CallState | undefined => state.call;
-export const getCallStatus = (state: CallAdapterState): SDKCallStatus => state.call?.state ?? 'None';
-export const getDeviceManager = (state: CallAdapterState): DeviceManagerState => state.devices;
-export const getIsScreenShareOn = (state: CallAdapterState): boolean => state.call?.isScreenSharingOn ?? false;
-export const getIsPreviewCameraOn = (state: CallAdapterState): boolean => isPreviewOn(state.devices);
-export const getPage = (state: CallAdapterState): CallCompositePage => state.page;
-export const getLocalMicrophoneEnabled = (state: CallAdapterState): boolean => state.isLocalPreviewMicrophoneEnabled;
-export const getDisplayName = (state: CallAdapterState): string | undefined => state.displayName;
-export const getIdentifier = (state: CallAdapterState): string => toFlatCommunicationIdentifier(state.userId);
+export const getCall = (state: CallClientState, props: CallingBaseSelectorProps): CallState | undefined => state.calls[props.callId];
+export const getCallStatus = (state: CallClientState, props: CallingBaseSelectorProps): SDKCallStatus => getCall(state, props)?.state ?? 'None';
+export const getDeviceManager = (state: CallClientState): DeviceManagerState => state.deviceManager;
+export const getIsScreenShareOn = (state: CallClientState, props: CallingBaseSelectorProps): boolean => getCall(state, props)?.isScreenSharingOn ?? false;
+export const getIsPreviewCameraOn = (state: CallClientState, props: CallingBaseSelectorProps): boolean => isPreviewOn(state.deviceManager);
+export const getDisplayName = (state: CallClientState, props: CallingBaseSelectorProps): string | undefined => state.callAgent?.displayName;
+export const getIdentifier = (state: CallClientState, props: CallingBaseSelectorProps): string => toFlatCommunicationIdentifier(state.userId);
 
 const isPreviewOn = (deviceManager: DeviceManagerState): boolean => {
   // TODO: we should take in a LocalVideoStream that developer wants to use as their 'Preview' view. We should also

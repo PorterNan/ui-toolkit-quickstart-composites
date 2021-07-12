@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { memoizeFnAll } from '@internal/acs-ui-common';
 import { mergeStyles, Spinner, SpinnerSize, Stack } from '@fluentui/react';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   PlaceholderProps,
   StreamMedia,
@@ -11,7 +10,7 @@ import {
   VideoGalleryRemoteParticipant,
   VideoStreamOptions,
   VideoTile
-} from '@internal/react-components';
+} from '@azure/communication-react';
 import {
   aspectRatioBoxContentStyle,
   aspectRatioBoxStyle,
@@ -27,30 +26,6 @@ export type ScreenShareProps = {
   onCreateLocalStreamView?: () => Promise<void>;
   onCreateRemoteStreamView?: (userId: string, options?: VideoStreamOptions) => Promise<void>;
 };
-
-const memoizeAllRemoteParticipants = memoizeFnAll(
-  (
-    userId: string,
-    isAvailable?: boolean,
-    isMuted?: boolean,
-    renderElement?: HTMLElement,
-    displayName?: string
-  ): JSX.Element => {
-    return (
-      <Stack horizontalAlign="center" verticalAlign="center" className={aspectRatioBoxStyle} key={userId}>
-        <Stack className={aspectRatioBoxContentStyle}>
-          <VideoTile
-            userId={userId}
-            isVideoReady={isAvailable}
-            renderElement={<StreamMedia videoStreamElement={renderElement ?? null} />}
-            displayName={displayName}
-            isMuted={isMuted}
-          />
-        </Stack>
-      </Stack>
-    );
-  }
-);
 
 // A non-undefined display name is needed for this render, and that is coming from VideoTile props below
 const onRenderPlaceholder = (props: PlaceholderProps): JSX.Element => (
@@ -133,29 +108,23 @@ export const ScreenShare = (props: ScreenShareProps): JSX.Element => {
   }, [isLocalVideoReady, localParticipant, localVideoStream, onCreateLocalStreamView]);
 
   const sidePanelRemoteParticipants = useMemo(() => {
-    return memoizeAllRemoteParticipants((memoizedRemoteParticipantFn) => {
-      return remoteParticipants && screenShareParticipant
-        ? remoteParticipants
-            .filter((remoteParticipant: VideoGalleryRemoteParticipant) => {
-              return remoteParticipant.userId !== screenShareParticipant.userId;
-            })
-            .map((participant: VideoGalleryRemoteParticipant) => {
-              const remoteVideoStream = participant.videoStream;
-
-              if (remoteVideoStream?.isAvailable && !remoteVideoStream?.renderElement) {
-                onCreateRemoteStreamView && onCreateRemoteStreamView(participant.userId);
-              }
-
-              return memoizedRemoteParticipantFn(
-                participant.userId,
-                remoteVideoStream?.isAvailable,
-                participant.isMuted,
-                remoteVideoStream?.renderElement,
-                participant.displayName
-              );
-            })
-        : [];
-    });
+    return remoteParticipants && screenShareParticipant
+      ? remoteParticipants
+        .filter((remoteParticipant: VideoGalleryRemoteParticipant) => {
+          return remoteParticipant.userId !== screenShareParticipant.userId;
+        })
+        .map((participant: VideoGalleryRemoteParticipant) => {
+          const remoteVideoStream = participant.videoStream;
+          return <SidePanelRemoteParticipant key={participant.userId}
+            userId={participant.userId}
+            onCreateRemoteStreamView={onCreateRemoteStreamView}
+            isStreamAvailable={remoteVideoStream?.isAvailable}
+            renderElement={remoteVideoStream?.renderElement}
+            displayName={participant.displayName}
+            isMuted={participant.isMuted}
+          />
+        })
+      : [];
   }, [remoteParticipants, onCreateRemoteStreamView, screenShareParticipant]);
 
   return (
@@ -172,3 +141,46 @@ export const ScreenShare = (props: ScreenShareProps): JSX.Element => {
     </>
   );
 };
+
+const SidePanelRemoteParticipant = React.memo((props: {
+  userId: string,
+  isStreamAvailable?: boolean,
+  isMuted?: boolean,
+  renderElement?: HTMLElement,
+  displayName?: string,
+  onCreateRemoteStreamView?: (userId: string, options?: VideoStreamOptions) => Promise<void>;
+  onDisposeRemoteStreamView?: (userId: string) => Promise<void>;
+
+}) => {
+  const { userId, isStreamAvailable, isMuted, renderElement, displayName, onDisposeRemoteStreamView, onCreateRemoteStreamView } = props;
+
+  useEffect(() => {
+    if (isStreamAvailable && !renderElement) {
+      onCreateRemoteStreamView && onCreateRemoteStreamView(userId);
+    }
+    if (!isStreamAvailable) {
+      onDisposeRemoteStreamView && onDisposeRemoteStreamView(userId);
+    }
+  }, [isStreamAvailable, onCreateRemoteStreamView, onDisposeRemoteStreamView, renderElement, userId]);
+
+
+  useEffect(() => {
+    return () => {
+      onDisposeRemoteStreamView && onDisposeRemoteStreamView(userId);
+    };
+  }, [onDisposeRemoteStreamView, userId]);
+
+  return (
+    <Stack horizontalAlign="center" verticalAlign="center" className={aspectRatioBoxStyle} key={userId}>
+      <Stack className={aspectRatioBoxContentStyle}>
+        <VideoTile
+          userId={userId}
+          isVideoReady={isStreamAvailable}
+          renderElement={<StreamMedia videoStreamElement={renderElement ?? null} />}
+          displayName={displayName}
+          isMuted={isMuted}
+        />
+      </Stack>
+    </Stack>
+  );
+})

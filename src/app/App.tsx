@@ -8,8 +8,6 @@ import { CommunicationUserIdentifier } from '@azure/communication-common';
 
 import {
   fetchTokenResponse,
-  buildTime,
-  callingSDKVersion,
   getGroupIdFromUrl,
   isOnIphoneAndNotSafari,
   isSmallScreen,
@@ -24,10 +22,6 @@ import { EndCall } from './views/EndCall';
 import { CallError } from './views/CallError';
 import { HomeScreen } from './views/HomeScreen';
 import { UnsupportedBrowserPage } from './views/UnsupportedBrowserPage';
-
-console.log(
-  `ACS sample calling app. Last Updated ${buildTime} Using @azure/communication-calling:${callingSDKVersion}`
-);
 
 initializeIcons();
 
@@ -63,7 +57,7 @@ const App = (): JSX.Element => {
   if (!supportedBrowser) return <UnsupportedBrowserPage />;
 
   if (isMobileSession() || isSmallScreen()) {
-    console.log('ACS Calling sample: This is experimental behaviour');
+    console.log('ACS Calling sample: This is experimental behavior');
   }
 
   switch (page) {

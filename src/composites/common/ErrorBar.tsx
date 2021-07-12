@@ -4,7 +4,7 @@
 import React from 'react';
 import { mergeStyles, MessageBar, MessageBarType } from '@fluentui/react';
 import { CommunicationUiErrorSeverity } from '../../types';
-import { BaseCustomStylesProps } from '@internal/react-components';
+import { BaseCustomStylesProps } from '@azure/communication-react';
 
 /**
  * Props for ErrorBar component
