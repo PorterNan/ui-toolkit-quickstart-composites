@@ -7,6 +7,6 @@
 5. Replace the `ResourceConnectionString` in the `samples/Server/appsettings.json` file with the connection string from your Azure Communication Services resource, which is listed in the Azure Portal under *Keys*.
 6. `cd samples/Server && rushx start`
 7. Go back to this repo
-8. `rush install`
-9. `rush build`
-10. `rushx start`
+8. `npm install`
+9. `npm build`
+10. `npm run start`
