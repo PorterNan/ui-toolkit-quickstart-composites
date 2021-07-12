@@ -9,10 +9,10 @@ import {
   MicrophoneButton,
   OptionsButton,
   ParticipantsButton,
-  ScreenShareButton
-} from '@internal/react-components';
+  ScreenShareButton,
+  usePropsFor
+} from '@azure/communication-react';
 import { groupCallLeaveButtonCompressedStyle, groupCallLeaveButtonStyle } from './styles/CallControls.styles';
-import { usePropsFor } from './hooks/usePropsFor';
 
 export type GroupCallControlsProps = {
   onEndCallClick(): void;
